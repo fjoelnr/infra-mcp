@@ -1,0 +1,21 @@
+{
+  "mcp_version": "0.1",
+  "server": {
+    "name": "${NODE_NAME}",
+    "description": "Local Ollama MCP endpoint on Windows",
+    "base_url": "http://${NODE_FQDN}"
+  },
+  "capabilities": {
+    "model_registry": {
+      "type": "read",
+      "description": "Read-only access to available local Ollama models",
+      "resources": {
+        "list_models": {
+          "endpoint": "/api/tags",
+          "method": "GET",
+          "returns": "application/json"
+        }
+      }
+    }
+  }
+}

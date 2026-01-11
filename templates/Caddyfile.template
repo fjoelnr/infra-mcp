@@ -1,0 +1,19 @@
+{
+	auto_https off
+}
+
+{{HOST}}:80 {
+
+	handle /api/* {
+		reverse_proxy {{OLLAMA_UPSTREAM}}
+	}
+
+	handle /.well-known/capabilities.json {
+		root * {{MCP_ROOT}}
+		file_server
+	}
+
+	handle /health {
+		respond "ok" 200
+	}
+}
