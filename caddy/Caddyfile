@@ -1,0 +1,19 @@
+{
+    auto_https off
+}
+
+ollama.valur.home:80 {
+
+    handle /health {
+        respond "ok" 200
+    }
+
+    handle /.well-known/capabilities.json {
+        root * C:/work/tools/mcp
+        file_server
+    }
+
+    handle /api/* {
+        reverse_proxy localhost:11434
+    }
+}
