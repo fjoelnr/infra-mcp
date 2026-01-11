@@ -21,3 +21,27 @@ C:\work\tools\caddy
 
 This repository is the source of truth.  
 Deployment is done explicitly via scripts.
+
+
+## Smoke Test (Node-lokal)
+
+Jeder MCP-Node wird **nur lokal** getestet.
+
+Der Smoke-Test prüft:
+- `/health`
+- `/.well-known/capabilities.json`
+- `/api/tags`
+
+### Ausführen
+
+```powershell
+.\smoke-test.ps1
+````
+
+### Bedeutung
+
+* ✅ PASS → Node ist korrekt deployed
+* ❌ FAIL → lokales Problem (Caddy, Ollama, MCP)
+
+Netzwerk- oder Cross-Node-Tests sind **nicht Teil** des Smoke-Tests.
+
