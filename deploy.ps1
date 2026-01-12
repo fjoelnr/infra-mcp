@@ -1,3 +1,7 @@
+#!/usr/bin/env pwsh
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
 Write-Host "=== MCP Deploy starting ==="
 
 $ROOT = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -45,3 +49,12 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "Deploy finished for $($env:NODE_FQDN)"
+
+Write-Host "Running smoke test..."
+& "$PSScriptRoot\smoke-test.ps1"
+
+if ($LASTEXITCODE -ne 0) {
+    throw "Smoke test failed - deploy aborted"
+}
+
+Write-Host "Deploy + smoke test successful"

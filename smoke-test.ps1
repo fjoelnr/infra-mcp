@@ -1,83 +1,110 @@
-<# 
- smoke-test.ps1
- Local smoke test for MCP + Caddy + Ollama
- Uses explicit Host header to match Caddy site block
-#>
-
+#!/usr/bin/env pwsh
+Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$TargetHost = "ollama.valur.home"
-$BaseUrl    = "http://127.0.0.1"
+Write-Host "=== MCP Smoke Test ==="
 
-function Get-TextContent {
-    param ($Response)
+$ROOT = Split-Path -Parent $MyInvocation.MyCommand.Path
+$NODE_ENV = Join-Path $ROOT "node.env"
 
-    if ($Response.Content -is [byte[]]) {
-        return [System.Text.Encoding]::UTF8.GetString($Response.Content)
-    }
-    return [string]$Response.Content
+if (-not (Test-Path $NODE_ENV)) {
+    throw "node.env not found"
 }
 
-function Invoke-LocalRequest {
-    param (
-        [string]$Url
-    )
+# node.env laden (KEY=VALUE)
+Get-Content $NODE_ENV | ForEach-Object {
+    if ($_ -match '^\s*#') { return }
+    if ($_ -match '^\s*$') { return }
 
-    Invoke-WebRequest `
-        -Uri $Url `
-        -Headers @{ Host = $TargetHost } `
-        -UseBasicParsing `
-        -TimeoutSec 5
+    $parts = $_ -split '=', 2
+    if ($parts.Count -ne 2) { return }
+
+    $key = $parts[0].Trim()
+    $value = $parts[1].Trim()
+    Set-Variable -Name $key -Value $value -Scope Script
 }
+
+if (-not $NODE_FQDN) {
+    throw "NODE_FQDN not set in node.env"
+}
+
+$BaseUrl = "http://127.0.0.1"
+$Headers = @{ Host = $NODE_FQDN }
 
 function Check-Endpoint {
     param (
         [string]$Name,
-        [string]$Url,
-        [ScriptBlock]$Validator
+        [string]$Path,
+        [scriptblock]$Validator
     )
 
-    Write-Host "[CHECK] $Name -> $Url (Host: $TargetHost)"
+    $url = "$BaseUrl$Path"
+    Write-Host "[CHECK] $Name -> $url (Host: $NODE_FQDN)"
 
-    $r = Invoke-LocalRequest $Url
-    $content = Get-TextContent $r
+    try {
+        $resp = Invoke-WebRequest `
+            -Uri $url `
+            -Headers $Headers `
+            -UseBasicParsing `
+            -TimeoutSec 5
+    }
+    catch {
+        throw "$Name request failed: $($_.Exception.Message)"
+    }
 
-    & $Validator $r $content
+    & $Validator $resp
 
     Write-Host "[OK] $Name"
 }
 
 try {
-    # Health
-    Check-Endpoint "Health" "$BaseUrl/health" {
-        param($r, $content)
-        if ($content.Trim() -ne "ok") {
-            throw "Health returned '$content'"
+    Check-Endpoint "Health" "/health" {
+        param($r)
+        # Content can be string or byte[] depending on PS version
+        if ($r.Content -is [byte[]]) {
+            $body = [System.Text.Encoding]::UTF8.GetString($r.Content)
+        }
+        else {
+            $body = $r.Content
+        }
+        if ($body.Trim() -ne "ok") {
+            throw "Health returned '$body'"
         }
     }
 
-    # Capabilities
-    Check-Endpoint "Capabilities" "$BaseUrl/.well-known/capabilities.json" {
-        param($r, $content)
-        $json = $content | ConvertFrom-Json
+    Check-Endpoint "Capabilities" "/.well-known/capabilities.json" {
+        param($r)
+        if ($r.Content -is [byte[]]) {
+            $text = [System.Text.Encoding]::UTF8.GetString($r.Content)
+        }
+        else {
+            $text = $r.Content
+        }
+        $json = $text | ConvertFrom-Json
         if (-not $json.mcp_version) {
             throw "Missing mcp_version"
         }
     }
 
-    # Ollama API
-    Check-Endpoint "Ollama API" "$BaseUrl/api/tags" {
-        param($r, $content)
-        $json = $content | ConvertFrom-Json
+    Check-Endpoint "Ollama API" "/api/tags" {
+        param($r)
+        if ($r.Content -is [byte[]]) {
+            $text = [System.Text.Encoding]::UTF8.GetString($r.Content)
+        }
+        else {
+            $text = $r.Content
+        }
+        $json = $text | ConvertFrom-Json
         if (-not $json.models) {
-            throw "No models returned"
+            throw "Missing models list"
         }
     }
 
     Write-Host "[PASS] Smoke test passed (local via Host header)"
+    exit 0
 }
 catch {
     Write-Host "[FAIL] Smoke test failed:"
-    Write-Host $_.Exception.Message
+    Write-Host $_
     exit 1
 }
