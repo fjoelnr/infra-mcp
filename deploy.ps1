@@ -41,11 +41,39 @@ $CADDY_OUT = Join-Path $GENERATED "Caddyfile"
 
 Write-Host "Rendered Caddyfile"
 
-# --- Reload Caddy ---
-Write-Host "Reloading Caddy..."
-& "C:\work\tools\caddy\caddy.exe" reload --config $CADDY_OUT --adapter caddyfile
-if ($LASTEXITCODE -ne 0) {
-    throw "Caddy reload failed"
+# --- Start or Reload Caddy ---
+$caddyExe = "C:\work\tools\caddy\caddy.exe"
+
+# Check if Caddy is already running by testing admin API
+$caddyProcess = Get-Process -Name "caddy" -ErrorAction SilentlyContinue
+$caddyRunning = $false
+
+if ($caddyProcess) {
+    try {
+        $null = Invoke-WebRequest -Uri "http://localhost:2019/config/" -Method GET -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop
+        $caddyRunning = $true
+    }
+    catch {
+        # Process exists but API not responding - kill stale process
+        Write-Host "Caddy process found but not responding - restarting..."
+        Stop-Process -Name "caddy" -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 2
+    }
+}
+
+if ($caddyRunning) {
+    Write-Host "Reloading Caddy..."
+    & $caddyExe reload --config $CADDY_OUT --adapter caddyfile
+    if ($LASTEXITCODE -ne 0) {
+        throw "Caddy reload failed"
+    }
+}
+else {
+    Write-Host "Caddy not running - starting..."
+    & $caddyExe start --config $CADDY_OUT --adapter caddyfile
+    if ($LASTEXITCODE -ne 0) {
+        throw "Caddy start failed"
+    }
 }
 
 Write-Host "Deploy finished for $($env:NODE_FQDN)"
