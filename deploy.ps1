@@ -82,7 +82,8 @@ Write-Host "Running smoke test..."
 & "$PSScriptRoot\smoke-test.ps1"
 
 if ($LASTEXITCODE -ne 0) {
-    throw "Smoke test failed - deploy aborted"
+    Write-Host "[FAIL] Smoke test failed - deploy aborted"
+    exit 1
 }
 
 Write-Host "Deploy + smoke test successful"
