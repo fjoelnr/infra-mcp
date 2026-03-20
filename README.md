@@ -1,47 +1,60 @@
 # infra-mcp
 
-Infrastructure repository for local MCP services and reverse proxies.
+Infrastructure source-of-truth for local MCP-facing services, generated Caddy routing, and deterministic smoke tests.
 
-## Components
+## Purpose
 
-### MCP
-- Discovery client for MCP-capable services
-- Normalized capability registry
+`infra-mcp` defines how local MCP and Ollama-facing infrastructure is rendered, deployed, and validated on a node. The repository does not contain the long-running runtime itself; it contains the templates, scripts, contracts, and generated artifacts that make deployment reproducible.
 
-### Caddy
-- Local reverse proxy for MCP / Ollama endpoints
-- Plain HTTP (LAN only)
+## Scope
 
-## Runtime
+- render Caddy configuration from explicit node metadata
+- expose a deterministic local HTTP surface for health and capabilities
+- smoke-test the deployed local MCP/Ollama path through the configured Host header
+- keep architecture and failure modes explicit before implementation drift happens
+
+## Repository Layout
+
+- `templates/`: canonical templates for generated runtime artifacts
+- `generated/`: rendered output generated from templates and `node.env`
+- `mcp/`: MCP-side code, currently including discovery tooling
+- `scripts/`: helper scripts for local startup and deployment support
+- `deploy.ps1`: main deploy path
+- `smoke-test.ps1`: local routing and capability smoke test
+- `GOVERNANCE.md`: binding architecture contract
+- `FAILURE_MODES.md`: system-level anti-pattern catalog
+
+## Runtime Model
 
 Runtime lives outside this repository:
 
-C:\work\tools\mcp  
-C:\work\tools\caddy  
+- `C:\work\tools\mcp`
+- `C:\work\tools\caddy`
 
-This repository is the source of truth.  
-Deployment is done explicitly via scripts.
+This repository remains the source of truth. Deployment is explicit and script-driven.
 
+## Configuration
 
-## Smoke Test (Node-lokal)
+Create a local `node.env` from [node.env.example](node.env.example).
 
-Jeder MCP-Node wird **nur lokal** getestet.
+Required values:
 
-Der Smoke-Test prüft:
-- `/health`
-- `/.well-known/capabilities.json`
-- `/api/tags`
+- `NODE_NAME`
+- `NODE_FQDN`
+- `OLLAMA_UPSTREAM`
+- `MCP_ROOT`
 
-### Ausführen
+The deploy path fails fast if required inputs are missing.
+
+## Core Commands
 
 ```powershell
+.\deploy.ps1
 .\smoke-test.ps1
-````
+```
 
-### Bedeutung
+## Status
 
-* ✅ PASS → Node ist korrekt deployed
-* ❌ FAIL → lokales Problem (Caddy, Ollama, MCP)
+This repository now has a public baseline, but it is still in early operational form. The main architecture and governance intent are already present; the next work is mostly hardening, clearer examples, and validation around the deploy path.
 
-Netzwerk- oder Cross-Node-Tests sind **nicht Teil** des Smoke-Tests.
-
+See [docs/STATUS.md](docs/STATUS.md) for the current state.
