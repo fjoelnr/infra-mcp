@@ -1,4 +1,8 @@
 #!/usr/bin/env pwsh
+param(
+    [switch]$SkipSmokeTest
+)
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
@@ -11,35 +15,20 @@ if (-not (Test-Path $ENV_FILE)) {
     throw "node.env not found"
 }
 
-# --- node.env laden ---
-Get-Content $ENV_FILE | ForEach-Object {
-    if ($_ -match "^\s*#" -or $_ -notmatch "=") { return }
-    $key, $value = $_ -split "=", 2
-    [System.Environment]::SetEnvironmentVariable($key, $value)
-}
-
-if (-not $env:NODE_FQDN) { throw "NODE_FQDN not set" }
-if (-not $env:OLLAMA_UPSTREAM) { throw "OLLAMA_UPSTREAM not set" }
-if (-not $env:MCP_ROOT) { throw "MCP_ROOT not set" }
+& (Join-Path $ROOT "scripts\render-artifacts.ps1") -EnvFile $ENV_FILE
 
 Write-Host "Loaded node.env for $($env:NODE_FQDN)"
 
-# --- Pfade ---
-$TEMPLATES = Join-Path $ROOT "templates"
 $GENERATED = Join-Path $ROOT "generated"
-New-Item -ItemType Directory -Force -Path $GENERATED | Out-Null
-
-$CADDY_TEMPLATE = Join-Path $TEMPLATES "Caddyfile.template"
 $CADDY_OUT = Join-Path $GENERATED "Caddyfile"
+$CAPABILITIES_SOURCE = Join-Path $GENERATED ".well-known\capabilities.json"
+$CAPABILITIES_TARGET_ROOT = Join-Path $env:MCP_ROOT ".well-known"
+$CAPABILITIES_TARGET = Join-Path $CAPABILITIES_TARGET_ROOT "capabilities.json"
 
-# --- Render Caddyfile ---
-(Get-Content $CADDY_TEMPLATE -Raw) `
-    -replace "{{HOST}}", $env:NODE_FQDN `
-    -replace "{{OLLAMA_UPSTREAM}}", $env:OLLAMA_UPSTREAM `
-    -replace "{{MCP_ROOT}}", $env:MCP_ROOT `
-| Set-Content $CADDY_OUT -Encoding UTF8
+New-Item -ItemType Directory -Force -Path $CAPABILITIES_TARGET_ROOT | Out-Null
+Copy-Item -Force -Path $CAPABILITIES_SOURCE -Destination $CAPABILITIES_TARGET
 
-Write-Host "Rendered Caddyfile"
+Write-Host "Rendered deploy artifacts and published capabilities.json"
 
 # --- Start or Reload Caddy ---
 $caddyExe = "C:\work\tools\caddy\caddy.exe"
@@ -78,12 +67,14 @@ else {
 
 Write-Host "Deploy finished for $($env:NODE_FQDN)"
 
-Write-Host "Running smoke test..."
-& "$PSScriptRoot\smoke-test.ps1"
+if (-not $SkipSmokeTest) {
+    Write-Host "Running smoke test..."
+    & "$PSScriptRoot\smoke-test.ps1"
 
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "[FAIL] Smoke test failed - deploy aborted"
-    exit 1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[FAIL] Smoke test failed - deploy aborted"
+        exit 1
+    }
+
+    Write-Host "Deploy + smoke test successful"
 }
-
-Write-Host "Deploy + smoke test successful"
