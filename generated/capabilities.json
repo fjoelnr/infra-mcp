@@ -1,7 +1,0 @@
-﻿{
-  "mcp_version": "0.1",
-  "server": {
-    "name": "ollama-pc",
-    "base_url": "http://ollama.valur.home"
-  }
-}
