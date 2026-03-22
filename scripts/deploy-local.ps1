@@ -1,10 +1,8 @@
-$SRC = Resolve-Path ".."
-$DST = "C:\work\tools"
+#!/usr/bin/env pwsh
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
 
-Write-Host "Deploying MCP..."
-robocopy "$SRC\mcp" "$DST\mcp" /MIR /XD __pycache__
+$root = Resolve-Path (Join-Path $PSScriptRoot "..")
 
-Write-Host "Deploying Caddy..."
-robocopy "$SRC\caddy" "$DST\caddy" /MIR
-
-Write-Host "Deployment finished."
+Write-Host "scripts/deploy-local.ps1 is deprecated. Calling deploy.ps1 to keep the generated deploy path canonical."
+& (Join-Path $root "deploy.ps1")

@@ -51,10 +51,13 @@ The deploy path fails fast if required inputs are missing.
 ```powershell
 .\deploy.ps1
 .\smoke-test.ps1
+.\scripts\validate-render.ps1
 ```
+
+See [docs/OPERATIONS.md](docs/OPERATIONS.md) for the canonical deploy flow, example `node.env`, and generated-artifact rules.
 
 ## Status
 
-This repository now has a public baseline, but it is still in early operational form. The main architecture and governance intent are already present; the next work is mostly hardening, clearer examples, and validation around the deploy path.
+This repository now has a public baseline with a deterministic render path for both the Caddy config and `/.well-known/capabilities.json`. The main architecture and governance intent are already present; the next work is mostly incremental hardening around deploy automation and node composition.
 
 See [docs/STATUS.md](docs/STATUS.md) for the current state.
